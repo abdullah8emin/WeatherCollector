@@ -1,0 +1,13 @@
+bin/
+obj/
+.idea/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+*.sln.iml
+*.db
+*.log
+*.tmp
+*.cache
+appsettings.Development.json
+
