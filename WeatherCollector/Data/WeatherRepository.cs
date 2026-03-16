@@ -1,5 +1,5 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using WeatherCollector.Models;
 using System.Data;
 
@@ -18,7 +18,7 @@ public class WeatherRepository
     {
         string query = $"SELECT Id, CAST(Latitude AS REAL) AS Latitude, CAST(Longitude AS REAL) AS Longitude FROM {tableName}";
 
-        using (IDbConnection connection = new SqliteConnection(_connectionString))
+        using (IDbConnection connection = new SqlConnection(_connectionString))
         {
             return connection.Query<Coordinates>(query);
         }
@@ -29,7 +29,7 @@ public class WeatherRepository
         string query = @"
             INSERT INTO Result (Name, Latitude, Longitude, Temperature, ThreadName, CreatedAt) 
                 VALUES (@Name, @Latitude, @Longitude, @Temperature, @ThreadName, @CreatedAt)";
-        using (IDbConnection connection = new SqliteConnection(_connectionString))
+        using (IDbConnection connection = new SqlConnection(_connectionString))
         {
             connection.Execute(query, results);
         }
@@ -37,7 +37,7 @@ public class WeatherRepository
 
     public void DeleteCoordinates(string tableName, int id)
     {
-        using (IDbConnection connection = new SqliteConnection(_connectionString))
+        using (IDbConnection connection = new SqlConnection(_connectionString))
         {
             connection.Open();
             connection.Execute($"DELETE FROM {tableName} WHERE Id = @id", new { id });

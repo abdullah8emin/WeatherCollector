@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using WeatherCollector.Models;
 using WeatherCollector.Data;
 using WeatherCollector.Services;
+using Microsoft.Extensions.Logging;
 
 namespace WeatherCollector.Workers;
 
@@ -12,12 +13,14 @@ public class Q2Worker
     private Thread _thread;
     private bool _isRunning;
     private readonly OpenMeteoApiService OpenMeteoApiService;
+    private readonly ILogger<Q2Worker> _logger;
 
-    public Q2Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig,  OpenMeteoApiService openMeteoApiService)
+    public Q2Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig,  OpenMeteoApiService openMeteoApiService, ILogger<Q2Worker> logger)
     {
         _weatherRepository = weatherRepository;
         OpenMeteoApiService = openMeteoApiService;
         _sleepInterval = threadConfig.Value.Q2SleepTime;
+        _logger = logger;
     }
 
     public void Start()
@@ -62,16 +65,17 @@ public class Q2Worker
                     _weatherRepository.SaveResults(results);
                     _weatherRepository.DeleteCoordinates("q2", coord.Id);
          
-                    Console.WriteLine($"[{_thread.Name}] API'den çekildi ve veritabanına yazıldı: {name} ({coord.Latitude}, {coord.Longitude}) -> Sıcaklık: {temp}°C");
+                    _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
+                        _thread.Name, name, coord.Latitude, coord.Longitude, temp);
                 }
                 else 
                 {
-                    Console.WriteLine($"{_thread.Name} islenecek veri bulunamadi");
+                    _logger.LogInformation("[{ThreadName}] islenecek veri bulunamadi", _thread.Name);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{_thread.Name} hata: {ex.Message}");
+                _logger.LogError(ex, "[{ThreadName}] Hata: {error}", _thread.Name, ex.Message);
             }
 
             Thread.Sleep(_sleepInterval);

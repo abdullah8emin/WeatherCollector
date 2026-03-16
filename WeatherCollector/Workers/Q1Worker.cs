@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using WeatherCollector.Models;
 using WeatherCollector.Data;
 using WeatherCollector.Services;
+using Microsoft.Extensions.Logging;
 
 namespace WeatherCollector.Workers;
 
@@ -12,12 +13,14 @@ public class Q1Worker
     private Thread _thread;
     private bool _isRunning;
     private readonly WeatherApiService _weatherApiService;
+    private readonly ILogger<Q1Worker> _logger;
     
-    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig, WeatherApiService weatherApiService)
+    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig, WeatherApiService weatherApiService, ILogger<Q1Worker> logger)
     {
         _weatherRepository = weatherRepository;
         _weatherApiService = weatherApiService;
         _sleepInterval = threadConfig.Value.Q1SleepTime;
+        _logger = logger;
     }
 
     public void Start()
@@ -60,19 +63,19 @@ public class Q1Worker
                     };
                 
                     _weatherRepository.SaveResults(results);
-                    _weatherRepository.DeleteCoordinates("q1", coord.Id);
-             
+                    _weatherRepository.DeleteCoordinates("q1", coord.Id); 
                     
-              Console.WriteLine($"[{_thread.Name}] API'den çekildi ve veritabanına yazıldı: {name} ({coord.Latitude}, {coord.Longitude}) -> Sıcaklık: {temp}°C");
+                    _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
+                        _thread.Name, name, coord.Latitude, coord.Longitude, temp);
                 }
                 else 
                 {
-                    Console.WriteLine($"{_thread.Name} islenecek veri bulunamadi");
+                    _logger.LogInformation("[{ThreadName}] islenecek veri bulunamadi", _thread.Name);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{_thread.Name} hata: {ex.Message}");
+                _logger.LogError(ex, "[{ThreadName}] Hata: {error}", _thread.Name, ex.Message);
             }
 
             Thread.Sleep(_sleepInterval);

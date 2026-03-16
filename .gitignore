@@ -10,4 +10,5 @@ riderModule.iml
 *.tmp
 *.cache
 appsettings.Development.json
-
+*.txt
+Logs/

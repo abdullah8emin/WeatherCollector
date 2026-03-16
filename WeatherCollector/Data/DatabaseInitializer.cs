@@ -1,5 +1,5 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Data;
 
 namespace WeatherCollector.Data;
@@ -15,34 +15,37 @@ public class DatabaseInitializer
 
     public void InitializeDatabase()
     {
-        using (IDbConnection connection = new SqliteConnection(_connectionString))
+        using (IDbConnection connection = new SqlConnection(_connectionString))
         {
             connection.Open();
-
+            
             string q1Table = @"
-                CREATE TABLE IF NOT EXISTS q1 (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Latitude REAL NOT NULL,
-                    Longitude REAL NOT NULL
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='q1' and xtype='U')
+                CREATE TABLE q1 (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Latitude FLOAT NOT NULL,
+                    Longitude FLOAT NOT NULL
                 )";
             connection.Execute(q1Table);
             
             string q2Table = @"
-                CREATE TABLE IF NOT EXISTS q2 (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Latitude REAL NOT NULL,
-                    Longitude REAL NOT NULL
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='q2' and xtype='U')
+                CREATE TABLE q2 (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Latitude FLOAT NOT NULL,
+                    Longitude FLOAT NOT NULL
                 )";
             connection.Execute(q2Table);
 
             string resultTable = @"
-                CREATE TABLE IF NOT EXISTS Result (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL,
-                    Latitude REAL NOT NULL,
-                    Longitude REAL NOT NULL,
-                    Temperature REAL NOT NULL,
-                    ThreadName TEXT NOT NULL,
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Result' and xtype='U')
+                CREATE TABLE Result (
+                    Id INT IDENTITY(1,1) PRIMARY KEY,
+                    Name NVARCHAR(255) NOT NULL,
+                    Latitude FLOAT NOT NULL,
+                    Longitude FLOAT NOT NULL,
+                    Temperature FLOAT NOT NULL,
+                    ThreadName NVARCHAR(50) NOT NULL,
                     CreatedAt DATETIME NOT NULL
                 )";
             connection.Execute(resultTable);
