@@ -8,11 +8,12 @@ using WeatherCollector.Workers;
 using Serilog;
 using Serilog.Events;
 
+string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs", "worker-log-.txt");
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .MinimumLevel.Override("System", LogEventLevel.Error)
     .WriteTo.Console()
-    .WriteTo.File("Logs/worker-log-.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.File(logDirectory, rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 try
@@ -20,6 +21,7 @@ try
     Log.Information("Logger Baslatiliyor");
 
     IHost host = Host.CreateDefaultBuilder(args)
+        .UseSystemd()
         .UseSerilog()
         .ConfigureServices((hostContext, services) =>
         {
@@ -29,7 +31,6 @@ try
             string connectionString = hostContext.Configuration.GetConnectionString("DefaultConnection") ??
                                       "Data Source=WeatherDb.db";
 
-            services.AddSingleton(new DatabaseInitializer(connectionString));
             services.AddSingleton(new WeatherRepository(connectionString));
 
             services.AddHttpClient<OpenMeteoApiService>();
@@ -39,9 +40,6 @@ try
             services.AddSingleton<Q2Worker>();
         })
         .Build();
-
-    var dbInitializer = host.Services.GetRequiredService<DatabaseInitializer>();
-    dbInitializer.InitializeDatabase();
 
     var q1Worker = host.Services.GetRequiredService<Q1Worker>();
     var q2Worker = host.Services.GetRequiredService<Q2Worker>();

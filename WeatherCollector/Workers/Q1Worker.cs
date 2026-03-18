@@ -43,7 +43,7 @@ public class Q1Worker
         {
             try
             {
-                var coord = _weatherRepository.GetCoordinates("q1").FirstOrDefault();
+                var coord = _weatherRepository.GetCoordinates("q1");
 
                 if (coord != null)
                 {
@@ -58,12 +58,10 @@ public class Q1Worker
                         Latitude = coord.Latitude,
                         Longitude = coord.Longitude,
                         Temperature = temp,
-                        ThreadName = _thread.Name,
-                        CreatedAt = DateTime.Now
+                        ThreadName = _thread.Name
                     };
-                
-                    _weatherRepository.SaveResults(results);
-                    _weatherRepository.DeleteCoordinates("q1", coord.Id); 
+                    
+                    _weatherRepository.SaveResultsAndDelete("q1", coord.Id, results);
                     
                     _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
                         _thread.Name, name, coord.Latitude, coord.Longitude, temp);

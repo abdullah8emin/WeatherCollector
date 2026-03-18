@@ -1,4 +1,4 @@
-using Dapper;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 using WeatherCollector.Models;
 using System.Data;
@@ -14,33 +14,50 @@ public class WeatherRepository
         _connectionString = connectionString;
     }
 
-    public IEnumerable<Coordinates> GetCoordinates(string tableName)
+    public Coordinates GetCoordinates(string tableName)
     {
-        string query = $"SELECT Id, CAST(Latitude AS REAL) AS Latitude, CAST(Longitude AS REAL) AS Longitude FROM {tableName}";
-
-        using (IDbConnection connection = new SqlConnection(_connectionString))
+        using (var connection = new SqlConnection(_connectionString))
+        using (var command = new SqlCommand("dbo.GetCoordinates", connection))
         {
-            return connection.Query<Coordinates>(query);
-        }
-    }
-
-    public void SaveResults(WeatherResults results)
-    {
-        string query = @"
-            INSERT INTO Result (Name, Latitude, Longitude, Temperature, ThreadName, CreatedAt) 
-                VALUES (@Name, @Latitude, @Longitude, @Temperature, @ThreadName, @CreatedAt)";
-        using (IDbConnection connection = new SqlConnection(_connectionString))
-        {
-            connection.Execute(query, results);
-        }
-    }
-
-    public void DeleteCoordinates(string tableName, int id)
-    {
-        using (IDbConnection connection = new SqlConnection(_connectionString))
-        {
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@TableName", tableName);
+            
             connection.Open();
-            connection.Execute($"DELETE FROM {tableName} WHERE Id = @id", new { id });
+
+            using (var reader = command.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    return new Coordinates
+                    {
+                        Id = reader.GetInt32(0),
+                        Latitude = (float)reader.GetDouble(1),
+                        Longitude = (float)reader.GetDouble(2)
+                    };
+                }
+            }
+        }
+        return null;
+    }
+    
+    public void SaveResultsAndDelete(string tableName, int id, WeatherResults result)
+    {
+        using (var connection = new SqlConnection(_connectionString))
+        using (var command = new SqlCommand("dbo.SaveResultsAndDelete", connection))
+        {
+            command.CommandType = CommandType.StoredProcedure;
+            
+            command.Parameters.AddWithValue("@TableName", tableName);
+            command.Parameters.AddWithValue("@Id", id);
+            
+            command.Parameters.AddWithValue("@Name", result.Name);
+            command.Parameters.AddWithValue("@Latitude", result.Latitude);
+            command.Parameters.AddWithValue("@Longitude", result.Longitude);
+            command.Parameters.AddWithValue("@Temperature", result.Temperature);
+            command.Parameters.AddWithValue("@ThreadName", result.ThreadName);
+            
+            connection.Open();
+            command.ExecuteNonQuery();
         }
     }
 }
