@@ -20,7 +20,8 @@ public class OpenMeteoApiService : IApiService
     {
         string url = $"{_config.OpenMeteoUrl}?latitude={latitude}&longitude={longitude}&current=temperature_2m";
         string urlCity = $"{_config.BigDataCloudUrl}?latitude={latitude}&longitude={longitude}&localityLanguage=tr";
-
+        
+        Console.WriteLine($"İstek atılan tam URL: {url}");
         try
         {
             var tempTask = _httpClient.GetStringAsync(url);

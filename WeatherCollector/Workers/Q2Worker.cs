@@ -3,6 +3,8 @@ using WeatherCollector.Models;
 using WeatherCollector.Data;
 using WeatherCollector.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.SignalR;
+using WeatherCollector.Hubs;
 
 namespace WeatherCollector.Workers;
 
@@ -15,14 +17,18 @@ public class Q2Worker
     private readonly OpenMeteoApiService OpenMeteoApiService;
     private readonly ILogger<Q2Worker> _logger;
     private readonly QueueManager _queueManager;
+    private readonly IHubContext<WeatherHub> _weatherHub;
 
-    public Q2Worker (WeatherRepository weatherRepository,IOptions<ThreadConfig> threadConfig, OpenMeteoApiService openMeteoApiService, ILogger<Q2Worker> logger, QueueManager queueManager)
+    public Q2Worker (WeatherRepository weatherRepository,IOptions<ThreadConfig> threadConfig,
+        OpenMeteoApiService openMeteoApiService, ILogger<Q2Worker> logger,
+        QueueManager queueManager, IHubContext<WeatherHub> weatherHub)
     {
         _weatherRepository = weatherRepository;
         OpenMeteoApiService = openMeteoApiService;
         _sleepInterval = threadConfig.Value.Q2SleepTime;
         _logger = logger;
         _queueManager = queueManager;
+        _weatherHub = weatherHub;
     }
 
     public void Start()
@@ -71,6 +77,16 @@ public class Q2Worker
          
                 _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
                     _thread.Name, name, msg.Latitude, msg.Longitude, temp);
+                
+                _weatherHub.Clients.All.SendAsync("ReceiveWeatherResult", new 
+                {
+                    lat = msg.Latitude,
+                    lon = msg.Longitude,
+                    cityName = name,
+                    source = "Q2",
+                    temperature = temp,
+                    date = DateTime.Now.ToString("HH:mm:ss")
+                }).GetAwaiter().GetResult();
                 
             }
             catch (Exception ex)

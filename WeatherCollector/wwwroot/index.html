@@ -2,14 +2,18 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Hava Durumu Görev Yöneticisi</title>
+    <title>Gerçek Zamanlı Hava Durumu Paneli</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
-        button:hover { background-color: #218838; }
-        #result { margin-top: 20px; font-weight: bold; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; } /* Mavi Başlıklar */
+        .q1-col { color: #d9534f; font-weight: bold; }
+        .q2-col { color: #5cb85c; font-weight: bold; }
+        input[type="text"] { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 9px 15px; border-radius: 4px; cursor: pointer; border: none; }
     </style>
 </head>
 <body>
@@ -18,17 +22,106 @@
     <h2>Koordinat Gönder</h2>
     <input type="text" id="lat" placeholder="Enlem (Örn: 41.0082)">
     <input type="text" id="lon" placeholder="Boylam (Örn: 28.9784)">
-    <button onclick="sendCoordinates()">Gönder</button>
-    <div id="result"></div>
+    <button onclick="sendCoordinates()" style="background: #28a745; color: white;">Gönder</button>
+    <div id="result" style="margin-top: 10px; font-weight: bold;"></div>
+
+    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+    <h2>Gönder (CSV)</h2>
+    <input type="file" id="csvFile" accept=".csv">
+    <button onclick="uploadCsv()" style="background: #007bff; color: white;">Dosyayı İşçilere Gönder</button>
+    <div id="status" style="margin-top: 10px; font-weight: bold;"></div>
+</div>
+
+<div class="card">
+    <h2>Sonuçlar</h2>
+    <table id="resultTable">
+        <thead>
+        <tr>
+            <th>Şehir</th>
+            <th>Weather API</th>
+            <th>Open Meteo</th>
+            <th>Tarih / Saat</th>
+        </tr>
+        </thead>
+        <tbody id="resultTableBody">
+        </tbody>
+    </table>
 </div>
 
 <script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/weatherHub")
+        .build();
+
+    connection.on("ReceiveWeatherResult", function (data) {
+        const tableBody = document.getElementById("resultTableBody");
+
+        const safeId = `row-${data.lat}-${data.lon}`.replace(/\./g, '_').replace(/,/g, '_');
+
+        let row = document.getElementById(safeId);
+
+        if (!row) {
+            row = document.createElement("tr");
+            row.id = safeId;
+            row.innerHTML = `
+            <td>${data.cityName}</td>
+            <td class="q1-col" id="q1-${safeId}">Bekleniyor...</td>
+            <td class="q2-col" id="q2-${safeId}">Bekleniyor...</td>
+            <td id="date-${safeId}">${data.date}</td>
+        `;
+            tableBody.prepend(row);
+        }
+
+        if (data.source === "Q1") {
+            document.getElementById(`q1-${safeId}`).innerText = data.temperature + " °C";
+        } else if (data.source === "Q2") {
+            document.getElementById(`q2-${safeId}`).innerText = data.temperature + " °C";
+        }
+
+        document.getElementById(`date-${safeId}`).innerText = data.date;
+    });
+
+    connection.start().then(() => console.log("SignalR Bağlantısı Başarılı!")).catch(err => console.error(err));
+
+    async function uploadCsv() {
+        const fileInput = document.getElementById('csvFile');
+        const statusDiv = document.getElementById('status');
+
+        if (fileInput.files.length === 0) {
+            statusDiv.innerText = "Lütfen önce bir CSV dosyası seçin!";
+            statusDiv.style.color = "red";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        statusDiv.innerText = "Yükleniyor...";
+        statusDiv.style.color = "black";
+
+        const response = await fetch('/api/upload-csv', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            statusDiv.innerText = "✅ " + data.message;
+            statusDiv.style.color = "green";
+        } else {
+            statusDiv.innerText = "❌ Yükleme sırasında hata oluştu.";
+            statusDiv.style.color = "red";
+        }
+    }
+
     async function sendCoordinates() {
         const lat = document.getElementById('lat').value;
         const lon = document.getElementById('lon').value;
         const resultDiv = document.getElementById('result');
 
         resultDiv.innerText = "Gönderiliyor...";
+        resultDiv.style.color = "black";
 
         const response = await fetch('/api/coordinates', {
             method: 'POST',

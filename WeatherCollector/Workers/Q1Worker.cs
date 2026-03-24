@@ -4,6 +4,8 @@ using WeatherCollector.Models;
 using WeatherCollector.Data;
 using WeatherCollector.Services;
 using Microsoft.Extensions.Logging;
+using WeatherCollector.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace WeatherCollector.Workers;
 
@@ -16,14 +18,19 @@ public class Q1Worker
     private readonly WeatherApiService _weatherApiService;
     private readonly ILogger<Q1Worker> _logger;
     private readonly QueueManager _queueManager;
+    private readonly IHubContext<WeatherHub> _weatherHub;
     
-    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig, WeatherApiService weatherApiService, ILogger<Q1Worker> logger, QueueManager queueManager)
+    
+    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig,
+        WeatherApiService weatherApiService, ILogger<Q1Worker> logger,
+        QueueManager queueManager, IHubContext<WeatherHub> weatherHub)
     {
         _weatherRepository = weatherRepository;
         _weatherApiService = weatherApiService;
         _sleepInterval = threadConfig.Value.Q1SleepTime;
         _logger = logger;
         _queueManager = queueManager;
+        _weatherHub = weatherHub;
     }
 
     public void Start()
@@ -73,6 +80,16 @@ public class Q1Worker
                     
                 _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
                     _thread.Name, name, msg.Latitude, msg.Longitude, temp);
+                
+                _weatherHub.Clients.All.SendAsync("ReceiveWeatherResult", new 
+                {
+                    lat = msg.Latitude,
+                    lon = msg.Longitude,
+                    cityName = name,
+                    source = "Q1",
+                    temperature = temp,
+                    date = DateTime.Now.ToString("HH:mm:ss")
+                }).GetAwaiter().GetResult();
                     
             }
             catch (Exception ex)

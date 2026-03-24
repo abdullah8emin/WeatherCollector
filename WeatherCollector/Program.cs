@@ -8,6 +8,8 @@ using WeatherCollector.Workers;
 using Serilog;
 using Serilog.Events;
 using WeatherCollector;
+using WeatherCollector.Hubs;
+using System.Globalization;
 
 string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs", "worker-log-.txt");
 
@@ -37,20 +39,58 @@ try
     
     builder.Services.AddSingleton<Q1Worker>();
     builder.Services.AddSingleton<Q2Worker>();
+
+    builder.Services.AddSignalR();
     
     var app = builder.Build();
 
     app.UseDefaultFiles();
     app.UseStaticFiles();
     
+    app.MapHub<WeatherHub>("/WeatherHub");
+    
     app.MapPost("/api/coordinates", (CoordinateMessage msg, QueueManager manager) =>
     {
         manager.Q1Queue.Add(msg);
         manager.Q2Queue.Add(msg);
     
-        Log.Information("Arayüzden veri geldi ve kuyruklara eklendi: {Lat}, {Lon}", msg.Latitude, msg.Longitude);
-        return Results.Ok(new { message = "Koordinatlar iki işçiye de gönderildi!" });
+        Log.Information("Arayüzden tekil veri geldi: {Lat}, {Lon}", msg.Latitude, msg.Longitude);
+        return Results.Ok(new { message = "Koordinatlar başarıyla işçilere gönderildi!" });
     });
+
+
+    app.MapPost("/api/upload-csv", async (IFormFile file, QueueManager manager) =>
+    {
+        if (file == null || file.Length == 0) return Results.BadRequest("Dosya boş.");
+
+        int count = 0;
+        using var reader = new StreamReader(file.OpenReadStream());
+    
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var parts = line.Split(',');
+
+            if (parts.Length >= 2)
+            {
+                bool isLatValid = double.TryParse(parts[0].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double lat);
+                bool isLonValid = double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double lon);
+
+                if (isLatValid && isLonValid)
+                {
+                    var msg = new CoordinateMessage { Latitude = lat, Longitude = lon };
+                    manager.Q1Queue.Add(msg);
+                    manager.Q2Queue.Add(msg);
+                    count++;
+                }
+            }
+        }
+
+        Log.Information("CSV yüklendi. Toplam: {Count} kayıt.", count);
+        return Results.Ok(new { message = $"{count} adet lokasyon başarıyla işçilere gönderildi!" });
+    }).DisableAntiforgery();
 
     var q1Worker = app.Services.GetRequiredService<Q1Worker>();
     var q2Worker = app.Services.GetRequiredService<Q2Worker>();

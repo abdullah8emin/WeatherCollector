@@ -22,8 +22,8 @@ GO
 
 CREATE PROCEDURE dbo.SaveResults
 	@Name NVARCHAR(255),
-    @Latitude DECIMAL(10, 6),
-	@Longitude DECIMAL(10, 6),
+    @Latitude Float(10, 6),
+	@Longitude Float(10, 6),
 	@Temperature FLOAT,
 	@ThreadName NVARCHAR(50)
 AS
