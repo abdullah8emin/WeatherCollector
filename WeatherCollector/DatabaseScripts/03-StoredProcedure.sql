@@ -20,9 +20,7 @@ END;
 
 GO
 
-CREATE PROCEDURE dbo.SaveResultsAndDelete
-    @TableName NVARCHAR(50),
-	@Id INT,
+CREATE PROCEDURE dbo.SaveResults
 	@Name NVARCHAR(255),
     @Latitude DECIMAL(10, 6),
 	@Longitude DECIMAL(10, 6),
@@ -30,23 +28,12 @@ CREATE PROCEDURE dbo.SaveResultsAndDelete
 	@ThreadName NVARCHAR(50)
 AS
 BEGIN
+	SET NOCOUNT ON;
+
 BEGIN TRY
 BEGIN TRAN
 INSERT INTO Result (Name, Latitude, Longitude, Temperature, ThreadName, CreatedAt) 
             VALUES (@Name, @Latitude, @Longitude, @Temperature, @ThreadName, GETDATE());
-			
-            IF @TableName = 'q1'
-BEGIN
-DELETE FROM q1 WHERE Id = @Id;
-END
-ELSE IF @TableName = 'q2'
-BEGIN
-DELETE FROM q2 WHERE Id = @Id;
-END
-ELSE
-BEGIN
-                THROW 50000, 'Gecersiz tablo adi parametresi gonderildi!', 1;
-END
 
 COMMIT TRAN;
 END TRY

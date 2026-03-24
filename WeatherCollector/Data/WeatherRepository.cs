@@ -13,42 +13,13 @@ public class WeatherRepository
     {
         _connectionString = connectionString;
     }
-
-    public Coordinates GetCoordinates(string tableName)
-    {
-        using (var connection = new SqlConnection(_connectionString))
-        using (var command = new SqlCommand("dbo.GetCoordinates", connection))
-        {
-            command.CommandType = CommandType.StoredProcedure;
-            command.Parameters.AddWithValue("@TableName", tableName);
-            
-            connection.Open();
-
-            using (var reader = command.ExecuteReader())
-            {
-                if (reader.Read())
-                {
-                    return new Coordinates
-                    {
-                        Id = reader.GetInt32(0),
-                        Latitude = (float)reader.GetDouble(1),
-                        Longitude = (float)reader.GetDouble(2)
-                    };
-                }
-            }
-        }
-        return null;
-    }
     
-    public void SaveResultsAndDelete(string tableName, int id, WeatherResults result)
+    public void SaveResults(WeatherResults result)
     {
         using (var connection = new SqlConnection(_connectionString))
-        using (var command = new SqlCommand("dbo.SaveResultsAndDelete", connection))
+        using (var command = new SqlCommand("dbo.SaveResults", connection))
         {
             command.CommandType = CommandType.StoredProcedure;
-            
-            command.Parameters.AddWithValue("@TableName", tableName);
-            command.Parameters.AddWithValue("@Id", id);
             
             command.Parameters.AddWithValue("@Name", result.Name);
             command.Parameters.AddWithValue("@Latitude", result.Latitude);

@@ -7,6 +7,7 @@ using WeatherCollector.Services;
 using WeatherCollector.Workers;
 using Serilog;
 using Serilog.Events;
+using WeatherCollector;
 
 string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs", "worker-log-.txt");
 
@@ -20,36 +21,46 @@ try
 {
     Log.Information("Logger Baslatiliyor");
 
-    IHost host = Host.CreateDefaultBuilder(args)
-        .UseSystemd()
-        .UseSerilog()
-        .ConfigureServices((hostContext, services) =>
-        {
-            services.Configure<WeatherApiConfig>(hostContext.Configuration.GetSection("WeatherApiConfig"));
-            services.Configure<ThreadConfig>(hostContext.Configuration.GetSection("ThreadSettings"));
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Host.UseSystemd();
+    builder.Host.UseSerilog();
 
-            string connectionString = hostContext.Configuration.GetConnectionString("DefaultConnection") ??
-                                      "Data Source=WeatherDb.db";
+    builder.Services.AddSingleton<QueueManager>();
+    builder.Services.Configure<WeatherApiConfig>(builder.Configuration.GetSection("WeatherApiConfig"));
+    builder.Services.Configure<ThreadConfig>(builder.Configuration.GetSection("ThreadSettings"));
+    
+    string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=WeatherDb.db"; 
 
-            services.AddSingleton(new WeatherRepository(connectionString));
+    builder.Services.AddSingleton(new WeatherRepository(connectionString));
+    builder.Services.AddHttpClient<WeatherApiService>();
+    builder.Services.AddHttpClient<OpenMeteoApiService>();
+    
+    builder.Services.AddSingleton<Q1Worker>();
+    builder.Services.AddSingleton<Q2Worker>();
+    
+    var app = builder.Build();
 
-            services.AddHttpClient<OpenMeteoApiService>();
-            services.AddHttpClient<WeatherApiService>();
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    
+    app.MapPost("/api/coordinates", (CoordinateMessage msg, QueueManager manager) =>
+    {
+        manager.Q1Queue.Add(msg);
+        manager.Q2Queue.Add(msg);
+    
+        Log.Information("Arayüzden veri geldi ve kuyruklara eklendi: {Lat}, {Lon}", msg.Latitude, msg.Longitude);
+        return Results.Ok(new { message = "Koordinatlar iki işçiye de gönderildi!" });
+    });
 
-            services.AddSingleton<Q1Worker>();
-            services.AddSingleton<Q2Worker>();
-        })
-        .Build();
-
-    var q1Worker = host.Services.GetRequiredService<Q1Worker>();
-    var q2Worker = host.Services.GetRequiredService<Q2Worker>();
+    var q1Worker = app.Services.GetRequiredService<Q1Worker>();
+    var q2Worker = app.Services.GetRequiredService<Q2Worker>();
 
     q1Worker.Start();
     q2Worker.Start();
 
-    Console.WriteLine("Worker Service başlatıldı.");
+    Console.WriteLine("Web API ve Worker Service başlatıldı. Tarayıcıdan arayüze erişebilirsiniz.");
 
-    await host.RunAsync();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -59,4 +70,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-    

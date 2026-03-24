@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Hava Durumu Görev Yöneticisi</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #218838; }
+        #result { margin-top: 20px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Koordinat Gönder</h2>
+    <input type="text" id="lat" placeholder="Enlem (Örn: 41.0082)">
+    <input type="text" id="lon" placeholder="Boylam (Örn: 28.9784)">
+    <button onclick="sendCoordinates()">Gönder</button>
+    <div id="result"></div>
+</div>
+
+<script>
+    async function sendCoordinates() {
+        const lat = document.getElementById('lat').value;
+        const lon = document.getElementById('lon').value;
+        const resultDiv = document.getElementById('result');
+
+        resultDiv.innerText = "Gönderiliyor...";
+
+        const response = await fetch('/api/coordinates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: parseFloat(lat), longitude: parseFloat(lon) })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            resultDiv.innerText = "✅ Başarılı: " + data.message;
+            resultDiv.style.color = "green";
+        } else {
+            resultDiv.innerText = "❌ Hata oluştu!";
+            resultDiv.style.color = "red";
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using WeatherCollector.Models;
 using WeatherCollector.Data;
@@ -14,13 +15,15 @@ public class Q1Worker
     private bool _isRunning;
     private readonly WeatherApiService _weatherApiService;
     private readonly ILogger<Q1Worker> _logger;
+    private readonly QueueManager _queueManager;
     
-    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig, WeatherApiService weatherApiService, ILogger<Q1Worker> logger)
+    public Q1Worker (WeatherRepository weatherRepository, IOptions<ThreadConfig> threadConfig, WeatherApiService weatherApiService, ILogger<Q1Worker> logger, QueueManager queueManager)
     {
         _weatherRepository = weatherRepository;
         _weatherApiService = weatherApiService;
         _sleepInterval = threadConfig.Value.Q1SleepTime;
         _logger = logger;
+        _queueManager = queueManager;
     }
 
     public void Start()
@@ -35,6 +38,7 @@ public class Q1Worker
     public void Stop()
     {
         _isRunning = false;
+        _thread.Join();
     }
 
     private void DoWork()
@@ -43,40 +47,39 @@ public class Q1Worker
         {
             try
             {
-                var coord = _weatherRepository.GetCoordinates("q1");
-
-                if (coord != null)
-                {
-                    var values = _weatherApiService.GetTemperatureAsync(coord.Latitude, coord.Longitude).GetAwaiter().GetResult();
-
-                    string name = values.Item1;
-                    double temp = values.Item2;
                 
-                    var results = new WeatherResults
-                    {
-                        Name = name,
-                        Latitude = coord.Latitude,
-                        Longitude = coord.Longitude,
-                        Temperature = temp,
-                        ThreadName = _thread.Name
-                    };
-                    
-                    _weatherRepository.SaveResultsAndDelete("q1", coord.Id, results);
-                    
-                    _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
-                        _thread.Name, name, coord.Latitude, coord.Longitude, temp);
-                }
-                else 
+                var msg = _queueManager
+                    .Q1Queue
+                    .Take();    
+                
+                var values = _weatherApiService
+                    .GetTemperatureAsync(msg.Latitude, msg.Longitude)
+                    .GetAwaiter()
+                    .GetResult();
+
+                string name = values.Item1;
+                double temp = values.Item2;
+                
+                var results = new WeatherResults
                 {
-                    _logger.LogInformation("[{ThreadName}] islenecek veri bulunamadi", _thread.Name);
-                }
+                    Name = name,
+                    Latitude = msg.Latitude,
+                    Longitude = msg.Longitude,
+                    Temperature = temp,
+                    ThreadName = _thread.Name
+                };
+                
+                _weatherRepository.SaveResults(results);
+                    
+                _logger.LogInformation("[{ThreadName}] API'den çekildi ve veritabanına yazıldı: {CityName} ({Latitude}, {Longitude}) -> Sıcaklık: {Temperature}°C", 
+                    _thread.Name, name, msg.Latitude, msg.Longitude, temp);
+                    
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[{ThreadName}] Hata: {error}", _thread.Name, ex.Message);
+                Thread.Sleep(_sleepInterval);
             }
-
-            Thread.Sleep(_sleepInterval);
         }
     }
 }
