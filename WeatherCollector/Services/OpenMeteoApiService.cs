@@ -19,9 +19,10 @@ public class OpenMeteoApiService : IApiService
     public async Task<(string, double)> GetTemperatureAsync(double latitude, double longitude)
     {
         string url = $"{_config.OpenMeteoUrl}?latitude={latitude}&longitude={longitude}&current=temperature_2m";
-        string urlCity = $"{_config.BigDataCloudUrl}?latitude={latitude}&longitude={longitude}&localityLanguage=tr";
+        string urlCity = $"{_config.BigDataCloudUrl}?latitude={latitude}&longitude={longitude}&localityLanguage=en&key={_config.BigDataCloudApiKey}";
         
-        Console.WriteLine($"İstek atılan tam URL: {url}");
+        Console.WriteLine($"İstek atılan URL (temp): {url}");
+        Console.WriteLine($"İstek atılan URL (cityName): {urlCity}");
         try
         {
             var tempTask = _httpClient.GetStringAsync(url);

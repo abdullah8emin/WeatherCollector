@@ -54,8 +54,8 @@ try
         manager.Q1Queue.Add(msg);
         manager.Q2Queue.Add(msg);
     
-        Log.Information("Arayüzden tekil veri geldi: {Lat}, {Lon}", msg.Latitude, msg.Longitude);
-        return Results.Ok(new { message = "Koordinatlar başarıyla işçilere gönderildi!" });
+        Log.Information("Arayüzden veri geldi: {Lat}, {Lon}", msg.Latitude, msg.Longitude);
+        return Results.Ok(new { message = "Koordinatlar başarıyla workerlara gönderildi!" });
     });
 
 
@@ -89,7 +89,7 @@ try
         }
 
         Log.Information("CSV yüklendi. Toplam: {Count} kayıt.", count);
-        return Results.Ok(new { message = $"{count} adet lokasyon başarıyla işçilere gönderildi!" });
+        return Results.Ok(new { message = $"{count} adet lokasyon başarıyla workerlara gönderildi!" });
     }).DisableAntiforgery();
 
     var q1Worker = app.Services.GetRequiredService<Q1Worker>();
@@ -98,7 +98,7 @@ try
     q1Worker.Start();
     q2Worker.Start();
 
-    Console.WriteLine("Web API ve Worker Service başlatıldı. Tarayıcıdan arayüze erişebilirsiniz.");
+    Console.WriteLine("Web API ve Worker Service başlatıldı.");
 
     await app.RunAsync();
 }

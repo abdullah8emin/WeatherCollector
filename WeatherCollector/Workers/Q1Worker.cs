@@ -54,10 +54,9 @@ public class Q1Worker
         {
             try
             {
-                
                 var msg = _queueManager
                     .Q1Queue
-                    .Take();    
+                    .Take();
                 
                 var values = _weatherApiService
                     .GetTemperatureAsync(msg.Latitude, msg.Longitude)
@@ -90,7 +89,13 @@ public class Q1Worker
                     temperature = temp,
                     date = DateTime.Now.ToString("HH:mm:ss")
                 }).GetAwaiter().GetResult();
-                    
+                
+                Task.Run(async () => 
+                {
+                    await Task.Delay(30000); 
+        
+                    _queueManager.Q1Queue.Add(msg); 
+                });
             }
             catch (Exception ex)
             {

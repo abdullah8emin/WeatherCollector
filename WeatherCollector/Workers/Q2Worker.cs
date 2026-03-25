@@ -88,6 +88,13 @@ public class Q2Worker
                     date = DateTime.Now.ToString("HH:mm:ss")
                 }).GetAwaiter().GetResult();
                 
+                Task.Run(async () => 
+                {
+                    await Task.Delay(30000); 
+        
+                    _queueManager.Q2Queue.Add(msg); 
+                });
+                
             }
             catch (Exception ex)
             {

@@ -9,8 +9,8 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px;}
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #007bff; color: white; } /* Mavi Başlıklar */
-        .q1-col { color: #d9534f; font-weight: bold; }
+        th { background-color: #007bff; color: white; }
+        .q1-col { color: #5cb85c; font-weight: bold; }
         .q2-col { color: #5cb85c; font-weight: bold; }
         input[type="text"] { padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 9px 15px; border-radius: 4px; cursor: pointer; border: none; }
@@ -22,7 +22,7 @@
     <h2>Koordinat Gönder</h2>
     <input type="text" id="lat" placeholder="Enlem (Örn: 41.0082)">
     <input type="text" id="lon" placeholder="Boylam (Örn: 28.9784)">
-    <button onclick="sendCoordinates()" style="background: #28a745; color: white;">Gönder</button>
+    <button onclick="sendCoordinates()" style="background: #007bff; color: white;">Gönder</button>
     <div id="result" style="margin-top: 10px; font-weight: bold;"></div>
 
     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
@@ -80,6 +80,13 @@
         }
 
         document.getElementById(`date-${safeId}`).innerText = data.date;
+
+        row.style.transition = "background-color 0.5s ease";
+        row.style.backgroundColor = "#d1ecf1";
+
+        setTimeout(() => {
+            row.style.backgroundColor = "";
+        }, 500);
     });
 
     connection.start().then(() => console.log("SignalR Bağlantısı Başarılı!")).catch(err => console.error(err));
